@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ARGONAUT RADIO",
+  title: "Argo Frequency",
   description:
     "Every Argonaut has a frequency. An unofficial fan experiment.",
 };
