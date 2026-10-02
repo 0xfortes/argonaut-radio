@@ -151,6 +151,16 @@ function ensureInitialized(): Promise<StrudelModule> {
         prebake: () => strudel.samples(SAMPLE_MAP, SAMPLE_BASE),
       });
 
+      /*
+       * Strudel only registers its AudioWorklets on
+       * the first document mousedown. distort (kick,
+       * acid) and supersaw need them: without them
+       * those notes are dropped, so a keyboard-only
+       * first play started without kick and acid.
+       * Load them here so every play starts the same.
+       */
+      await strudel.loadWorklets();
+
       await preloadUrls(
         strudel,
         CORE_BANKS.flatMap((bank) =>
@@ -191,6 +201,25 @@ export function prepareStrudel(): void {
   });
 }
 
+/*
+ * Incremented by every play and stop, so a play
+ * that is still awaiting init knows it was
+ * cancelled and never starts.
+ */
+let playToken = 0;
+
+/*
+ * Stop the scheduler (cycle back to 0) and rebuild
+ * the orbit effects, so delay/reverb tails and duck
+ * automation from the last transmission never leak
+ * into the next one: every play starts from the
+ * same state as a fresh page load.
+ */
+function resetAudio(strudel: StrudelModule): void {
+  strudel.hush();
+  strudel.resetGlobalEffects();
+}
+
 export async function playTransmission(
   id: string,
   dna: ArgonautDNA
@@ -198,6 +227,8 @@ export async function playTransmission(
   if (typeof window === "undefined") {
     return;
   }
+
+  const token = ++playToken;
 
   const strudel = await getStrudel();
 
@@ -207,7 +238,12 @@ export async function playTransmission(
 
   await ensureInitialized();
 
-  strudel.hush();
+  // Stopped or replaced while we were waiting.
+  if (token !== playToken) {
+    return;
+  }
+
+  resetAudio(strudel);
 
   const code = buildTransmissionCode(id, dna);
 
@@ -275,6 +311,37 @@ const ACID_PHRASES: (number | null)[][] = [
 ];
 
 /*
+ * 16-step sub-bass patterns as semitone offsets
+ * from the root, one octave below the acid.
+ * Off the kick so the two don't fight.
+ */
+const BASS_PATTERNS: (number | null)[][] = [
+  // offbeat
+  [
+    null, null, 0, null,
+    null, null, 0, null,
+    null, null, 0, null,
+    null, null, 0, null,
+  ],
+  // rolling
+  [
+    null, 0, 0, 0,
+    null, 0, 0, 0,
+    null, 0, 0, 0,
+    null, 0, 0, 0,
+  ],
+  // rolling, moving to the 7th and octave
+  [
+    null, 0, 0, 0,
+    null, 0, 0, 0,
+    null, 0, 0, 10,
+    null, 0, 12, 0,
+  ],
+];
+
+const BASS_OCTAVE_OFFSET = -12;
+
+/*
  * Section order of the acid phrases, picked by
  * dna.machine (0–3).
  */
@@ -286,11 +353,11 @@ const ACID_ORDERS = [
 ];
 
 /*
- * Arrangement: a 44-bar form of eight sections
- * (about 74 s at 143 BPM). One Strudel cycle = one bar.
+ * Arrangement: a 42-bar form of eight sections
+ * (about 70 s at 143 BPM). One Strudel cycle = one bar.
  *
- *   0 INTRO   kick, open + sparse hats, acid
- *   1 GROOVE  + open hats, clap, glitch
+ *   0 INTRO   kick, open + sparse hats, acid, bass
+ *   1 GROOVE  + clap, glitch, rolling bass
  *   2 ACID    acid phrase changes
  *   3 DRIVE   denser hats, arp enters
  *   4 BREAK   kick, clap, open hats drop out
@@ -299,13 +366,13 @@ const ACID_ORDERS = [
  *   7 PEAK    everything, chord change in stabs
  */
 /*
- * Bars per section. Short sections early so the
- * track gets going fast; the main grooves (DRIVE,
+ * Bars per section. A 2-bar intro so the groove
+ * lands after ~3 s; the main grooves (DRIVE,
  * RETURN, PEAK) get 8 bars to ride.
  *
  *   INTRO GROOVE ACID DRIVE BREAK BUILD RETURN PEAK
  */
-const SECTION_BARS = [4, 4, 4, 8, 4, 4, 8, 8];
+const SECTION_BARS = [2, 4, 4, 8, 4, 4, 8, 8];
 const SECTION_COUNT = SECTION_BARS.length;
 
 /*
@@ -388,6 +455,7 @@ const LAYOUT = {
   hats:      [0,    1,     2,   3,    0,    1,    2,     3] as Slots,
   clap:      [1,    0,     0,   0,    null, 0,    0,     0] as Slots,
   acid:      [0,    1,     2,   3,    1,    3,    2,     0] as Slots,
+  bass:      [0,    1,     1,   2,    null, 0,    1,     2] as Slots,
   arp:       [null, null,  null, 0,   1,    1,    2,     3] as Slots,
   stabs:     [null, null,  null, null, null, 0,   1,     2] as Slots,
   glitchLow: [null, 0,     1,   1,    0,    1,    1,     1] as Slots,
@@ -731,6 +799,18 @@ export function buildTransmissionCode(
     LAYOUT.acid
   );
 
+  /*
+   * Sub bass: triangle an octave below the acid.
+   * Fundamental ~33–58 Hz for depth; its odd
+   * harmonics keep it audible on small speakers.
+   */
+  const bass = sectionLayer(
+    BASS_PATTERNS.map((pattern) =>
+      offsetsToNotes(pattern, rootMidi + BASS_OCTAVE_OFFSET)
+    ),
+    LAYOUT.bass
+  );
+
   const cutoff = Math.round(200 + acid * 4);
   const resonance = Math.round(6 + acid * 0.12);
 
@@ -842,8 +922,8 @@ export function buildTransmissionCode(
   );
 
   /*
-   * Mix: drums on orbit 1, acid on orbit 2 (ducked
-   * by the kick for the sidechain pump), arp on
+   * Mix: drums on orbit 1, acid + bass on orbit 2
+   * (ducked by the kick for the sidechain pump), arp on
    * orbit 3 with its own delay, stabs + hoover on
    * orbit 4 with reverb, voice on orbit 5, chirps on
    * orbit 6 with delay. The acid comes first so its
@@ -854,6 +934,7 @@ export function buildTransmissionCode(
     "",
     "stack(",
     `  note("${acidSteps}").s("sawtooth").ftype(1).lpf(${cutoff}).resonance(${resonance}).lpenv("${acidEnvs}").lpdecay(0.15).decay(0.18).sustain(0).gain("${acidGains}").distort("1.5:0.5").orbit(2),`,
+    `  note("${bass}").s("triangle").decay(0.14).sustain(0).gain(0.55).orbit(2),`,
     `  s("${kick}").distort("1:0.7").gain(0.9).duck(2).duckdepth(0.6).duckattack(0.15),`,
     `  s("${openHat}").gain(0.25),`,
     `  s("${hats}").gain(0.12),`,
@@ -873,11 +954,14 @@ export function buildTransmissionCode(
 }
 
 export async function stopTransmission(): Promise<void> {
+  // Cancels a playTransmission still waiting on init.
+  playToken++;
+
   if (!initPromise) {
     return;
   }
 
   const strudel = await initPromise;
 
-  strudel.hush();
+  resetAudio(strudel);
 }

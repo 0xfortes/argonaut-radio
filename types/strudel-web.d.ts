@@ -4,7 +4,7 @@
  *
  * Verified against node_modules/@strudel/web/web.mjs
  * and node_modules/superdough (samples, getAudioContext,
- * loadBuffer).
+ * loadBuffer, loadWorklets, resetGlobalEffects).
  */
 declare module "@strudel/web" {
   export type InitStrudelOptions = {
@@ -30,6 +30,14 @@ declare module "@strudel/web" {
   ): Promise<void>;
 
   export function getAudioContext(): AudioContext;
+
+  // superdough: registers the AudioWorklets
+  // (distort, supersaw, crush, …).
+  export function loadWorklets(): Promise<unknown>;
+
+  // superdough: disconnects and rebuilds the
+  // orbit effect nodes (delay, reverb, duck).
+  export function resetGlobalEffects(): void;
 
   export function loadBuffer(
     url: string,
