@@ -199,6 +199,35 @@ sawtooth
 
 This is important historical context, but DO NOT assume the current working tree still contains the working version. Inspect the actual files first. if if you have better performance and secure ways to use strudel, inform me.
 
+AUDIO ENGINE NOTES (current state)
+----------------------------------
+Verified against the installed @strudel/web 1.3.0 / superdough source.
+
+- Worklets: Strudel only registers its AudioWorklets on the first
+  document mousedown (initAudioOnFirstClick). distort (kick, acid) and
+  supersaw (hoover) drop their notes without them. ensureInitialized()
+  in lib/strudel.ts therefore awaits strudel.loadWorklets(). Do not
+  remove it, or a fresh page entered with the Enter key plays without
+  kick and acid (this was the "same ID starts differently" bug).
+- Reset per transmission: resetAudio() = hush() + resetGlobalEffects().
+  It runs on every play and stop, so delay/reverb tails and duck
+  automation never carry over. hush() alone resets the cycle to 0 but
+  keeps the orbit effect nodes alive. Same ID = identical start.
+- playToken: a stop or a newer play cancels a play that is still
+  awaiting init, so a stale ID never starts after "New Frequency".
+  The signatures playTransmission(id, dna) and stopTransmission() are
+  unchanged.
+- Form: SECTION_BARS = [2, 4, 4, 8, 4, 4, 8, 8] (42 bars, ~70 s at
+  143 BPM). The intro is 2 bars so the groove lands after ~3 s. Every
+  layer must cover all sections; sectionLayer() enforces this.
+- Bass: BASS_PATTERNS + LAYOUT.bass give a triangle one octave below
+  ROOT_MIDI (offbeat → rolling → rolling with 7th/octave, silent in
+  BREAK). It is on orbit 2, so the kick's duck(2) pumps it with the
+  acid. Its gain (0.55) is the balance knob.
+- Known remaining nondeterminism: late samples (voice digits, sid,
+  amen) preload in the background and are first heard ≥17 s in;
+  supersaw has internal per-voice phase randomness.
+
 RECENT DAMAGE / DEBUGGING CONTEXT
 ---------------------------------
 Several attempted modifications were made to lib/strudel.ts.

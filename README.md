@@ -14,7 +14,9 @@ Enter an Argonaut ID (1–9999) and the terminal tunes into its frequency:
 
 - **Music:** a deterministic, evolving acid / warehouse techno track generated in the
   browser with [Strudel](https://strudel.cc). The same ID always produces the same track:
-  BPM, key, acid line, groove, arrangement and rave flavour all come from the ID's "DNA".
+  BPM, key, acid line, sub-bass, groove, arrangement and rave flavour all come from the ID's
+  "DNA". A track also starts identically every time, however the ID was entered (fresh page,
+  "New Frequency", keyboard or click).
 - **Art:** the Argonaut's real art and traits (palette, bones, crown, sight, cloak, relic,
   artifact), read live from its Ethereum contract (fully on-chain) and redrawn as ASCII in the
   token's own colours, animated to the beat.
@@ -45,7 +47,7 @@ Then open <http://localhost:3000>.
 | File | Role |
 | --- | --- |
 | `lib/argonaut.ts` | ID validation (1–9999, no leading zeros), deterministic DNA, offline fallback sprite (generic figure, no traits; only used when the chain is unreachable) |
-| `lib/strudel.ts` | DNA to Strudel pattern code (arrangement, layers, mix), sample preloading, playback |
+| `lib/strudel.ts` | DNA to Strudel pattern code (arrangement, layers, mix), sample + AudioWorklet preloading, playback (each play starts from a clean audio state) |
 | `lib/onchain.ts` | Read-only `tokenURI` call to the Argonauts contract; SVG to coloured ASCII plus trait readout |
 | `app/page.tsx` | The terminal UI |
 | `next.config.ts` | Security headers (CSP, frame and referrer policies) |
