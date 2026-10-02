@@ -149,6 +149,20 @@ ASCII ARGONAUT
 --------------
 ASCII Argonaut representation.
 
+The art is the token's real on-chain art: tokenURI returns a 24×24 SVG
+of <rect>s, which lib/onchain.ts parses (strict regex, never inserted
+into the page) and redraws as ASCII.
+
+- Every glyph keeps its real pixel colour (validated #rrggbb) on the
+  black CRT background; the glyph shape (░▒▓█) follows brightness.
+- Traits shown: Palette, Bones, Crown, Sight, Cloak, Relic, Artifact
+  (not Print). Each token has only some of them.
+- Real tokenURI results are ~180k–260k chars. Do not lower
+  MAX_RESULT_CHARS below that, or most IDs silently fall back to the
+  local sprite with no traits.
+- The local sprite in lib/argonaut.ts is only an offline fallback for
+  when the chain is unreachable.
+
 
 STRudel / AUDIO HISTORY
 -----------------------

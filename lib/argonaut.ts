@@ -162,6 +162,8 @@ export type ArgonautPart =
 export type AsciiRun = {
   part: ArgonautPart | null;
   text: string;
+  // Real pixel colour (#rrggbb) for on-chain art.
+  color?: string;
 };
 
 export type ArgonautTraits = {

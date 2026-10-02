@@ -29,7 +29,9 @@ const RPC_URL = "https://ethereum-rpc.publicnode.com";
 const TOKEN_URI_SELECTOR = "0xc87b56dd";
 
 const REQUEST_TIMEOUT_MS = 8000;
-const MAX_RESULT_CHARS = 200_000;
+// Real results run ~180k–260k chars; the cap only
+// guards against absurd responses.
+const MAX_RESULT_CHARS = 1_000_000;
 
 const GRID_SIZE = 24;
 
@@ -37,14 +39,18 @@ const JSON_PREFIX = "data:application/json;base64,";
 const SVG_PREFIX = "data:image/svg+xml;base64,";
 
 /*
- * Traits shown in the readout (others, like the
- * print-claim status, are left out).
+ * Traits shown in the readout, in display order
+ * (others, like the print-claim status, are left
+ * out). Each token only has some of them.
  */
 const TRAIT_LABELS: Record<string, string> = {
+  Palette: "PALETTE",
+  Bones: "BONES",
   Crown: "CROWN",
   Sight: "SIGHT",
-  Bones: "BONES",
-  Palette: "PALETTE",
+  Cloak: "CLOAK",
+  Relic: "RELIC",
+  Artifact: "ARTIFACT",
 };
 
 const MAX_TRAIT_LENGTH = 40;
@@ -207,8 +213,9 @@ function decodeBase64Utf8(base64: string): string {
 
 /*
  * Rasterise the SVG's <rect>s into a 24×24 grid.
- * Only integer geometry and #rrggbb fills are
- * accepted; anything else is ignored.
+ * Only integer geometry, #rrggbb fills and an
+ * optional numeric fill-opacity are accepted;
+ * anything else is ignored.
  */
 function svgToGrid(svg: string): PixelGrid {
   const grid: (string | null)[][] = Array.from({ length: GRID_SIZE }, () =>
@@ -216,17 +223,25 @@ function svgToGrid(svg: string): PixelGrid {
   );
 
   const rectPattern =
-    /<rect x="(\d{1,2})" y="(\d{1,2})" width="(\d{1,2})" height="(\d{1,2})" fill="(#[0-9a-fA-F]{6})"\s*\/>/g;
+    /<rect x="(\d{1,2})" y="(\d{1,2})" width="(\d{1,2})" height="(\d{1,2})" fill="(#[0-9a-fA-F]{6})"(?: fill-opacity="(0(?:\.\d{1,3})?|1(?:\.0{1,3})?)")?\s*\/>/g;
 
   let painted = 0;
 
   for (const match of svg.matchAll(rectPattern)) {
     const [x, y, width, height] = match.slice(1, 5).map(Number);
     const fill = match[5].toLowerCase();
+    const opacity = match[6] === undefined ? 1 : Number(match[6]);
 
     for (let row = y; row < Math.min(y + height, GRID_SIZE); row++) {
       for (let col = x; col < Math.min(x + width, GRID_SIZE); col++) {
-        grid[row][col] = fill;
+        const below = grid[row][col];
+
+        // Translucent rects are shading over the
+        // pixel below (shadows / highlights).
+        grid[row][col] =
+          opacity < 1 && below !== null
+            ? blend(below, fill, opacity)
+            : fill;
       }
     }
 
@@ -242,6 +257,22 @@ function svgToGrid(svg: string): PixelGrid {
 
   return grid.map((row) =>
     row.map((color) => (color === background ? null : color))
+  );
+}
+
+function blend(below: string, top: string, opacity: number): string {
+  return (
+    "#" +
+    [1, 3, 5]
+      .map((index) => {
+        const a = parseInt(below.slice(index, index + 2), 16);
+        const b = parseInt(top.slice(index, index + 2), 16);
+
+        return Math.round(a + (b - a) * opacity)
+          .toString(16)
+          .padStart(2, "0");
+      })
+      .join("")
   );
 }
 
@@ -261,9 +292,10 @@ const TONES: { part: ArgonautPart; glyph: string }[] = [
 ];
 
 /*
- * Pixel grid → phosphor ASCII runs. Brightness is
- * normalised per Argonaut so dark and light
- * palettes both keep their full shading.
+ * Pixel grid → ASCII runs. Each glyph keeps the
+ * pixel's real colour; the glyph itself (░▒▓█)
+ * follows brightness, normalised per Argonaut so
+ * dark and light palettes both keep their shading.
  */
 function gridToSprite(grid: PixelGrid): AsciiRun[][] {
   const levels = grid
@@ -278,24 +310,28 @@ function gridToSprite(grid: PixelGrid): AsciiRun[][] {
     const runs: AsciiRun[] = [];
 
     for (const color of row) {
-      let part: ArgonautPart | null = null;
-      let text = "  ";
+      if (color === null) {
+        const last = runs[runs.length - 1];
 
-      if (color !== null) {
-        const level = (luminance(color) - min) / range;
-        const tone =
-          TONES[Math.min(TONES.length - 1, Math.floor(level * TONES.length))];
+        if (last && last.part === null) {
+          last.text += "  ";
+        } else {
+          runs.push({ part: null, text: "  " });
+        }
 
-        part = tone.part;
-        text = tone.glyph.repeat(2);
+        continue;
       }
 
+      const level = (luminance(color) - min) / range;
+      const tone =
+        TONES[Math.min(TONES.length - 1, Math.floor(level * TONES.length))];
+      const text = tone.glyph.repeat(2);
       const last = runs[runs.length - 1];
 
-      if (last && last.part === part) {
+      if (last && last.part === tone.part && last.color === color) {
         last.text += text;
       } else {
-        runs.push({ part, text });
+        runs.push({ part: tone.part, text, color });
       }
     }
 

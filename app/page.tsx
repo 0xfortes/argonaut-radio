@@ -319,6 +319,11 @@ export default function Home() {
                                     ? `part-${run.part}`
                                     : undefined
                                 }
+                                style={
+                                  run.color
+                                    ? { color: run.color }
+                                    : undefined
+                                }
                               >
                                 {run.text}
                               </span>

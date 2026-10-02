@@ -886,8 +886,10 @@ input {
       rgba(255, 79, 216, 0.35);
 }
 
-/* On-chain art: brightness bands as a phosphor
-   ramp (lib/onchain.ts). */
+/* On-chain art: brightness bands (lib/onchain.ts).
+   Each run's real pixel colour is set inline and
+   overrides these; they are the phosphor ramp
+   fallback. */
 .part-tone1 {
   color: #1f5a2a;
 }
@@ -903,9 +905,10 @@ input {
 .part-tone4 {
   color: #d6ffd2;
 
+  /* Glow in the glyph's own colour. */
   text-shadow:
     0 0 6px
-      rgba(114, 255, 114, 0.35);
+      color-mix(in srgb, currentColor 35%, transparent);
 }
 
 /* Head nod: a drop + flash on every kick. */

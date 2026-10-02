@@ -2,6 +2,11 @@
 
 > Every Argonaut has a frequency.
 
+Argonaut Radio is a just-for-fun side project: an excuse to play with
+[Strudel](https://strudel.cc) — live-coding music in the browser — while building something playful
+around the Argonauts. Each Argonaut becomes its own little underground radio station: an acid
+techno track generated from its ID, with its real on-chain art glowing on a CRT terminal.
+
 An unofficial, experimental fan transmission inspired by the
 [Argonauts](https://opensea.io/collection/argonauts) by Alpha Centauri Kid / Muse Facktory.
 
@@ -10,8 +15,9 @@ Enter an Argonaut ID (1–9999) and the terminal tunes into its frequency:
 - **Music:** a deterministic, evolving acid / warehouse techno track generated in the
   browser with [Strudel](https://strudel.cc). The same ID always produces the same track:
   BPM, key, acid line, groove, arrangement and rave flavour all come from the ID's "DNA".
-- **Art:** the Argonaut's real art, read live from its Ethereum contract (fully on-chain)
-  and redrawn as phosphor ASCII, animated to the beat.
+- **Art:** the Argonaut's real art and traits (palette, bones, crown, sight, cloak, relic,
+  artifact), read live from its Ethereum contract (fully on-chain) and redrawn as ASCII in the
+  token's own colours, animated to the beat.
 
 > **Unofficial fan experiment.** Not affiliated with Alpha Centauri Kid or Muse Facktory.
 > The Argonaut art is read live from Ethereum and belongs to its creators.
@@ -38,9 +44,9 @@ Then open <http://localhost:3000>.
 
 | File | Role |
 | --- | --- |
-| `lib/argonaut.ts` | ID validation (1–9999, no leading zeros), deterministic DNA, offline fallback sprite |
+| `lib/argonaut.ts` | ID validation (1–9999, no leading zeros), deterministic DNA, offline fallback sprite (generic figure, no traits; only used when the chain is unreachable) |
 | `lib/strudel.ts` | DNA to Strudel pattern code (arrangement, layers, mix), sample preloading, playback |
-| `lib/onchain.ts` | Read-only `tokenURI` call to the Argonauts contract; SVG to phosphor ASCII |
+| `lib/onchain.ts` | Read-only `tokenURI` call to the Argonauts contract; SVG to coloured ASCII plus trait readout |
 | `app/page.tsx` | The terminal UI |
 | `next.config.ts` | Security headers (CSP, frame and referrer policies) |
 
