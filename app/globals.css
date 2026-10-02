@@ -1,26 +1,1038 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --radio-green: #72ff72;
+  --radio-green-dim: #285b28;
+  --radio-green-dark: #102510;
+  --radio-black: #020402;
+
+  --argonaut-gray: #89959a;
+  --argonaut-gray-light: #b7c2c5;
+  --argonaut-gray-dark: #4b565a;
+  --argonaut-black: #080a0b;
+  --argonaut-blue: #62cfff;
+  --argonaut-blue-dim: #28627b;
+  --argonaut-gold: #b89b58;
+  --radio-magenta: #ff4fd8;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+* {
+  box-sizing: border-box;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  background: var(--radio-black);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: monospace;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.radio-screen {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+
+  background:
+    radial-gradient(
+      ellipse at center,
+      #071007 0%,
+      #020402 55%,
+      #000000 100%
+    );
+
+  color: var(--radio-green);
+}
+
+.radio-content {
+  position: relative;
+  z-index: 3;
+
+  min-height: 100vh;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 32px;
+}
+
+.scanlines {
+  position: fixed;
+  inset: 0;
+
+  z-index: 10;
+
+  pointer-events: none;
+
+  opacity: 0.12;
+
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0px,
+      transparent 2px,
+      rgba(120, 255, 120, 0.08) 3px,
+      transparent 4px
+    );
+}
+
+.radio-noise {
+  position: fixed;
+  inset: -50%;
+
+  z-index: 1;
+
+  pointer-events: none;
+
+  opacity: 0.025;
+
+  background-image:
+    repeating-radial-gradient(
+      circle at 0 0,
+      #ffffff 0,
+      #ffffff 1px,
+      transparent 1px,
+      transparent 3px
+    );
+
+  background-size: 5px 5px;
+
+  animation:
+    noise 0.18s steps(2)
+    infinite;
+}
+
+/* ==========================================
+   INPUT TERMINAL
+   ========================================== */
+
+.terminal {
+  width: min(700px, 100%);
+
+  padding: 34px;
+
+  border: 1px solid
+    var(--radio-green-dark);
+
+  background:
+    rgba(0, 8, 0, 0.72);
+
+  box-shadow:
+    0 0 50px
+      rgba(70, 255, 70, 0.025),
+    inset 0 0 40px
+      rgba(70, 255, 70, 0.015);
+
+  animation:
+    terminal-flicker 8s infinite;
+}
+
+.terminal-header {
+  display: flex;
+  justify-content: space-between;
+
+  color: var(--radio-green);
+
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+
+.terminal-header span {
+  color: var(--radio-green-dim);
+}
+
+.terminal-line {
+  margin-top: 12px;
+
+  color: var(--radio-green-dark);
+
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.system-message {
+  margin-top: 18px;
+
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+
+.system-message.dim {
+  color: var(--radio-green-dim);
+}
+
+.error-message {
+  color: #ff4f4f;
+  margin-top: 14px;
+}
+
+.terminal-spacer {
+  height: 100px;
+}
+
+.terminal-spacer-small {
+  height: 28px;
+}
+
+.frequency-label {
+  margin-bottom: 12px;
+
+  color: var(--radio-green-dim);
+
+  font-size: 11px;
+  letter-spacing: 0.12em;
+}
+
+.frequency-form {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  border-bottom:
+    1px solid
+    var(--radio-green-dark);
+
+  padding-bottom: 12px;
+}
+
+.prompt {
+  color: var(--radio-green-dim);
+}
+
+.frequency-input {
+  min-width: 0;
+  flex: 1;
+
+  border: 0;
+  outline: none;
+
+  background: transparent;
+
+  color: var(--radio-green);
+
+  font-size: 20px;
+
+  caret-color: var(--radio-green);
+}
+
+.frequency-input::placeholder {
+  color: #142914;
+}
+
+.transmit-button {
+  border: 0;
+
+  background: transparent;
+
+  color: var(--radio-green-dim);
+
+  cursor: pointer;
+
+  font-size: 11px;
+}
+
+.transmit-button:hover {
+  color: var(--radio-green);
+}
+
+/* ==========================================
+   TRANSMISSION
+   ========================================== */
+
+.transmission {
+  width: min(1150px, 100%);
+
+  min-height: 620px;
+
+  display: flex;
+  flex-direction: column;
+}
+
+.transmission-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+
+  border-bottom:
+    1px solid
+    var(--radio-green-dark);
+
+  padding-bottom: 18px;
+}
+
+.tiny-label {
+  color: var(--radio-green-dim);
+
+  font-size: 10px;
+  letter-spacing: 0.12em;
+}
+
+.signal-status {
+  margin-top: 8px;
+
+  font-size: 13px;
+  letter-spacing: 0.08em;
+}
+
+.signal-light {
+  color: var(--radio-green);
+
+  font-size: 12px;
+
+  animation:
+    signal-pulse 1s infinite;
+}
+
+/* ==========================================
+   ARGONAUT / DATA SIDE BY SIDE
+   ========================================== */
+
+.argonaut-grid {
+  display: grid;
+
+  grid-template-columns:
+    minmax(0, 1.35fr)
+    minmax(300px, 0.65fr);
+
+  gap: 54px;
+
+  flex: 1;
+
+  margin-top: 36px;
+}
+
+/* ==========================================
+   ARGONAUT PANEL
+   ========================================== */
+
+.ascii-panel {
+  position: relative;
+
+  min-height: 520px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  overflow: hidden;
+
+  border:
+    1px solid
+    var(--radio-green-dark);
+
+  background:
+    radial-gradient(
+      ellipse at center,
+      rgba(16, 29, 30, 0.5),
+      rgba(0, 8, 0, 0.7)
+    );
+
+  box-shadow:
+    inset 0 0 80px
+      rgba(70, 255, 70, 0.025);
+}
+
+.ascii-panel::before {
+  content: "";
+
+  position: absolute;
+  inset: 0;
+
+  pointer-events: none;
+
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0px,
+      transparent 3px,
+      rgba(100, 255, 100, 0.035) 4px
+    );
+}
+
+.ascii-panel::after {
+  content: "";
+
+  position: absolute;
+
+  width: 70%;
+  height: 50%;
+
+  left: 15%;
+  top: 25%;
+
+  pointer-events: none;
+
+  background:
+    radial-gradient(
+      ellipse,
+      rgba(80, 200, 255, 0.045),
+      transparent 70%
+    );
+
+  animation:
+    argonaut-glow 4s
+    ease-in-out infinite;
+}
+
+.ascii-label {
+  position: absolute;
+
+  top: 18px;
+  left: 20px;
+
+  z-index: 3;
+
+  color:
+    var(--radio-green-dim);
+
+  font-size: 9px;
+
+  letter-spacing: 0.16em;
+}
+
+.ascii-frame {
+  position: relative;
+
+  z-index: 2;
+
+  width: 100%;
+
+  display: flex;
+  justify-content: center;
+
+  padding: 50px 20px 40px;
+
+  overflow: hidden;
+}
+
+.argonaut-ascii {
+  margin: 0;
+
+  color:
+    var(--argonaut-gray-light);
+
+  font-family:
+    "Courier New",
+    monospace;
+
+  font-size:
+    clamp(
+      8px,
+      1.15vw,
+      14px
+    );
+
+  line-height: 1.08;
+
+  letter-spacing: 0;
+
+  white-space: pre;
+
+  text-align: left;
+
+  text-shadow:
+    0 0 5px
+      rgba(130, 220, 220, 0.18),
+
+    0 0 15px
+      rgba(80, 200, 255, 0.06);
+
+  animation:
+    argonaut-flicker 5s
+    infinite;
+}
+
+.ascii-interference {
+  position: absolute;
+
+  bottom: 16px;
+  left: 20px;
+
+  color:
+    var(--radio-green-dark);
+
+  font-size: 9px;
+
+  letter-spacing: 0.1em;
+}
+
+/* ==========================================
+   ARGONAUT CHARACTER COLOR TREATMENT
+   ========================================== */
+
+.argonaut-ascii {
+  filter:
+    drop-shadow(
+      0 0 3px
+      rgba(110, 220, 255, 0.12)
+    );
+}
+
+/* ==========================================
+   RIGHT INFORMATION PANEL
+   ========================================== */
+
+.signal-panel {
+  display: flex;
+  flex-direction: column;
+
+  min-width: 0;
+}
+
+.frequency-display {
+  margin-top: 24px;
+}
+
+.frequency-small {
+  color: var(--radio-green-dim);
+
+  font-size: 10px;
+
+  letter-spacing: 0.15em;
+}
+
+.argonaut-number {
+  margin-top: 6px;
+
+  font-size:
+    clamp(
+      42px,
+      7vw,
+      76px
+    );
+
+  letter-spacing: -0.06em;
+
+  text-shadow:
+    0 0 12px
+      rgba(100, 255, 100, 0.25),
+
+    0 0 30px
+      rgba(100, 255, 100, 0.08);
+}
+
+/* ==========================================
+   DNA
+   ========================================== */
+
+.dna-readout {
+  width: 100%;
+
+  margin-top: 42px;
+
+  border-top:
+    1px solid
+    var(--radio-green-dark);
+
+  padding-top: 14px;
+}
+
+.readout-row {
+  display: flex;
+  justify-content: space-between;
+
+  padding: 5px 0;
+
+  color: var(--radio-green-dim);
+
+  font-size: 11px;
+
+  letter-spacing: 0.08em;
+}
+
+.readout-row span:last-child {
+  color: var(--radio-green);
+}
+
+/* ==========================================
+   SIGNAL METER
+   ========================================== */
+
+.signal-meter {
+  margin-top: 42px;
+}
+
+.meter-label {
+  margin-bottom: 10px;
+
+  color: var(--radio-green-dim);
+
+  font-size: 10px;
+
+  letter-spacing: 0.15em;
+}
+
+.meter-bars {
+  display: flex;
+
+  gap: 3px;
+
+  height: 28px;
+
+  align-items: flex-end;
+}
+
+.meter-bar {
+  display: block;
+
+  flex: 1;
+
+  min-width: 2px;
+
+  height: 35%;
+
+  background:
+    var(--radio-green);
+
+  opacity: 0.45;
+
+  animation:
+    meter 0.8s
+    ease-in-out
+    infinite alternate;
+}
+
+/* ==========================================
+   STATUS
+   ========================================== */
+
+.transmission-status {
+  margin-top: auto;
+
+  padding-top: 50px;
+
+  color: var(--radio-green);
+
+  font-size: 11px;
+
+  letter-spacing: 0.12em;
+}
+
+.status-pulse {
+  display: inline-block;
+
+  margin-right: 8px;
+
+  animation:
+    signal-pulse 0.9s
+    infinite;
+}
+
+.new-frequency {
+  width: fit-content;
+
+  margin-top: 28px;
+
+  border: 0;
+
+  background: transparent;
+
+  padding: 0;
+
+  color: var(--radio-green-dim);
+
+  cursor: pointer;
+
+  font-size: 10px;
+
+  letter-spacing: 0.08em;
+}
+
+.new-frequency:hover {
+  color: var(--radio-green);
+}
+
+/* ==========================================
+   ANIMATIONS
+   ========================================== */
+
+@keyframes signal-pulse {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes meter {
+  0% {
+    height: 20%;
+    opacity: 0.25;
+  }
+
+  25% {
+    height: 70%;
+  }
+
+  50% {
+    height: 35%;
+  }
+
+  75% {
+    height: 90%;
+  }
+
+  100% {
+    height: 45%;
+    opacity: 0.65;
+  }
+}
+
+@keyframes argonaut-flicker {
+  0%,
+  92%,
+  100% {
+    opacity: 1;
+  }
+
+  93% {
+    opacity: 0.82;
+  }
+
+  94% {
+    opacity: 1;
+  }
+
+  97% {
+    opacity: 0.9;
+  }
+}
+
+@keyframes argonaut-glow {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.95);
+  }
+
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes noise {
+  0% {
+    transform:
+      translate(0, 0);
+  }
+
+  25% {
+    transform:
+      translate(2%, -1%);
+  }
+
+  50% {
+    transform:
+      translate(-1%, 2%);
+  }
+
+  75% {
+    transform:
+      translate(1%, 1%);
+  }
+
+  100% {
+    transform:
+      translate(-2%, -1%);
+  }
+}
+
+@keyframes terminal-flicker {
+  0%,
+  18%,
+  20%,
+  65%,
+  67%,
+  100% {
+    opacity: 1;
+  }
+
+  19%,
+  66% {
+    opacity: 0.96;
+  }
+}
+
+/* ==========================================
+   MOBILE
+   ========================================== */
+
+@media (max-width: 800px) {
+  .radio-content {
+    padding: 20px;
+  }
+
+  .transmission {
+    min-height: 0;
+  }
+
+  .argonaut-grid {
+    grid-template-columns: 1fr;
+
+    gap: 30px;
+
+    margin-top: 30px;
+  }
+
+  .ascii-panel {
+    min-height: 460px;
+  }
+
+  .signal-panel {
+    padding-bottom: 30px;
+  }
+
+  .transmission-status {
+    margin-top: 40px;
+  }
+}
+
+@media (max-width: 600px) {
+  .terminal {
+    padding: 24px;
+  }
+
+  .frequency-form {
+    flex-wrap: wrap;
+  }
+
+  .transmit-button {
+    width: 100%;
+
+    text-align: left;
+
+    padding-left: 22px;
+  }
+
+  .frequency-input {
+    width:
+      calc(
+        100% - 40px
+      );
+  }
+
+  .ascii-panel {
+    min-height: 380px;
+  }
+
+  .ascii-frame {
+    padding-left: 5px;
+    padding-right: 5px;
+  }
+
+  .argonaut-ascii {
+    font-size: 6.5px;
+  }
+
+  .argonaut-number {
+    font-size: 48px;
+  }
+}
+
+/* ==========================================
+   ARGONAUT SPRITE PARTS + BEAT ANIMATION
+   --beat is one beat at the Argonaut's BPM
+   (set inline). Motion only runs while
+   data-live="true", i.e. once audio started.
+   ========================================== */
+
+/* Each row is its own block line, so it can be
+   shifted (signal tear) without breaking the
+   layout. */
+.argonaut-ascii .ascii-row {
+  display: block;
+}
+
+.part-helmet {
+  color: var(--argonaut-gray-light);
+}
+
+.part-hood {
+  color: var(--argonaut-blue-dim);
+}
+
+.part-face {
+  color: var(--argonaut-gray);
+}
+
+.part-torso {
+  color: var(--argonaut-gray-dark);
+}
+
+.part-gold,
+.part-pipe {
+  color: var(--argonaut-gold);
+}
+
+.part-visor {
+  color: var(--radio-magenta);
+
+  text-shadow:
+    0 0 6px
+      rgba(255, 79, 216, 0.35);
+}
+
+/* On-chain art: brightness bands as a phosphor
+   ramp (lib/onchain.ts). */
+.part-tone1 {
+  color: #1f5a2a;
+}
+
+.part-tone2 {
+  color: #3f9a4c;
+}
+
+.part-tone3 {
+  color: #7fe07f;
+}
+
+.part-tone4 {
+  color: #d6ffd2;
+
+  text-shadow:
+    0 0 6px
+      rgba(114, 255, 114, 0.35);
+}
+
+/* Head nod: a drop + flash on every kick. */
+.argonaut-ascii[data-live="true"] {
+  animation:
+    argonaut-flicker 5s infinite,
+    argonaut-nod var(--beat) ease-out infinite;
+}
+
+/* Visor charges up every 2 beats. */
+.argonaut-ascii[data-live="true"] .part-visor {
+  animation:
+    visor-charge calc(var(--beat) * 2) ease-out infinite;
+}
+
+/* Signal tear: a few rows jump sideways for a
+   split second, once every 2 bars. */
+.argonaut-ascii[data-live="true"] .ascii-row:nth-child(7n + 3) {
+  animation:
+    row-tear calc(var(--beat) * 8) steps(1, end) infinite;
+}
+
+.argonaut-ascii[data-live="true"] .ascii-row:nth-child(9n + 5) {
+  animation:
+    row-tear calc(var(--beat) * 8) steps(1, end) infinite;
+
+  animation-delay: calc(var(--beat) * 5);
+}
+
+@keyframes argonaut-nod {
+  0% {
+    transform: translateY(2px);
+
+    filter:
+      drop-shadow(0 0 3px rgba(110, 220, 255, 0.12))
+      brightness(1.35);
+  }
+
+  35%,
+  100% {
+    transform: translateY(0);
+
+    filter:
+      drop-shadow(0 0 3px rgba(110, 220, 255, 0.12))
+      brightness(1);
+  }
+}
+
+@keyframes visor-charge {
+  0% {
+    text-shadow:
+      0 0 4px rgba(255, 79, 216, 0.9),
+      0 0 14px rgba(255, 79, 216, 0.6);
+  }
+
+  40%,
+  100% {
+    text-shadow:
+      0 0 6px rgba(255, 79, 216, 0.35);
+  }
+}
+
+@keyframes row-tear {
+  0%,
+  95% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+
+  96% {
+    transform: translateX(1ch);
+    opacity: 0.7;
+  }
+
+  98% {
+    transform: translateX(-1ch);
+    opacity: 0.5;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .argonaut-ascii,
+  .argonaut-ascii * {
+    animation: none !important;
+  }
+}
+
+/* ==========================================
+   FOOTER — disclaimer + AGPL source link
+   ========================================== */
+
+/* Pinned to the bottom so the disclaimer and the
+   source link are always visible. */
+.radio-footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 4;
+
+  padding: 10px 24px 12px;
+
+  background:
+    linear-gradient(
+      to top,
+      var(--radio-black) 55%,
+      transparent
+    );
+
+  color: var(--radio-green-dim);
+
+  font-size: 9px;
+  line-height: 1.6;
+  letter-spacing: 0.12em;
+
+  text-align: center;
+}
+
+.radio-footer a {
+  color: var(--radio-green);
+
+  text-decoration: none;
+
+  border-bottom: 1px dotted var(--radio-green-dim);
+}
+
+.radio-footer a:hover,
+.radio-footer a:focus-visible {
+  border-bottom-style: solid;
 }
