@@ -799,6 +799,13 @@ input {
   .transmission-status {
     margin-top: 40px;
   }
+
+  /* Easier to hit with a thumb. */
+  .new-frequency {
+    padding: 12px 0;
+
+    font-size: 11px;
+  }
 }
 
 @media (max-width: 600px) {
@@ -1038,4 +1045,18 @@ input {
 .radio-footer a:hover,
 .radio-footer a:focus-visible {
   border-bottom-style: solid;
+}
+
+/* On phones the disclaimer wraps to several lines,
+   and pinned it covered the NEW FREQUENCY button.
+   Let it flow after the content instead. (Kept
+   after the base rule so it wins the cascade.) */
+@media (max-width: 800px) {
+  .radio-footer {
+    position: relative;
+
+    padding: 16px 20px 20px;
+
+    background: transparent;
+  }
 }
