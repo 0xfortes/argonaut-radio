@@ -18,6 +18,7 @@ import {
   playTransmission,
   prepareStrudel,
   stopTransmission,
+  unlockAudio,
 } from "@/lib/strudel";
 
 import {
@@ -217,6 +218,10 @@ export default function Home() {
             <form
               onSubmit={(event) => {
                 event.preventDefault();
+                // Synchronously, inside the tap:
+                // mobile browsers block audio
+                // started after an await.
+                unlockAudio();
                 transmit();
               }}
               className="frequency-form"

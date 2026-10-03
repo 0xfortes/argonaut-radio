@@ -9,6 +9,10 @@ type StrudelModule = typeof import("@strudel/web");
 let strudelPromise: Promise<StrudelModule> | null = null;
 let initPromise: Promise<StrudelModule> | null = null;
 
+// Set once the import resolves, so unlockAudio()
+// can reach the AudioContext synchronously.
+let loadedStrudel: StrudelModule | null = null;
+
 /*
  * @strudel/web touches `window` at import time,
  * so it must only ever be imported dynamically
@@ -16,10 +20,104 @@ let initPromise: Promise<StrudelModule> | null = null;
  */
 function getStrudel(): Promise<StrudelModule> {
   if (!strudelPromise) {
-    strudelPromise = import("@strudel/web");
+    strudelPromise = import("@strudel/web").then((strudel) => {
+      loadedStrudel = strudel;
+      return strudel;
+    });
   }
 
   return strudelPromise;
+}
+
+/*
+ * Safari 16.4+ Audio Session API (not yet in
+ * TypeScript's DOM types).
+ */
+type NavigatorWithAudioSession = Navigator & {
+  audioSession?: { type: string };
+};
+
+/*
+ * Mobile browsers only let audio start inside the
+ * user's tap. Strudel's own unlock listens for
+ * `mousedown` only, and playTransmission() reaches
+ * resume() after an await, which iOS Safari no
+ * longer treats as part of the tap. Call this
+ * synchronously at the start of the tap/submit
+ * handler, before any await.
+ */
+export function unlockAudio(): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  /*
+   * Without this, iOS treats Web Audio as
+   * "ambient" sound and the silent switch mutes it.
+   */
+  try {
+    const session = (navigator as NavigatorWithAudioSession).audioSession;
+
+    if (session) {
+      session.type = "playback";
+    }
+  } catch (error) {
+    console.warn("Audio session unavailable:", error);
+  }
+
+  // Not loaded yet: playTransmission() still
+  // tries resume() itself.
+  if (!loadedStrudel) {
+    return;
+  }
+
+  try {
+    const audioContext = loadedStrudel.getAudioContext();
+
+    void audioContext.resume();
+
+    // Playing one silent sample inside the gesture
+    // is what unlocks output on WebKit.
+    const buffer = audioContext.createBuffer(1, 1, audioContext.sampleRate);
+    const source = audioContext.createBufferSource();
+
+    source.buffer = buffer;
+    source.connect(audioContext.destination);
+    source.start(0);
+  } catch (error) {
+    console.warn("Audio unlock failed:", error);
+  }
+}
+
+/*
+ * resume() can stay pending forever when the
+ * browser refuses it (no user gesture). Wait a
+ * bounded time, then fail loudly so the user can
+ * tap again instead of sitting in silence.
+ */
+const RESUME_TIMEOUT_MS = 1500;
+
+async function resumeAudio(strudel: StrudelModule): Promise<void> {
+  const audioContext = strudel.getAudioContext();
+
+  if (audioContext.state === "running") {
+    return;
+  }
+
+  await Promise.race([
+    audioContext.resume(),
+    new Promise<void>((resolve) => {
+      setTimeout(resolve, RESUME_TIMEOUT_MS);
+    }),
+  ]);
+
+  // Cast: TS narrowed `state` above and doesn't
+  // know resume() changes it.
+  if ((audioContext.state as AudioContextState) !== "running") {
+    throw new Error(
+      `Audio context locked (state: ${audioContext.state})`
+    );
+  }
 }
 
 /*
@@ -233,8 +331,9 @@ export async function playTransmission(
   const strudel = await getStrudel();
 
   // Must happen as close to the user click as
-  // possible (browser autoplay policy).
-  await strudel.getAudioContext().resume();
+  // possible (browser autoplay policy). The page
+  // calls unlockAudio() in the tap itself.
+  await resumeAudio(strudel);
 
   await ensureInitialized();
 
